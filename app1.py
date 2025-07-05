@@ -424,12 +424,22 @@ print("done")
 
 
 # === Replace these values ===
+import requests
+import base64
+import os
+
+# === Replace these values ===
 GITHUB_USERNAME = "shreyai347"
-GITHUB_TOKEN = "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"  # Create a token from https://github.com/settings/tokens
 REPO = "api-data"
 FILE_PATH = "in.csv"
 LOCAL_FILE = "combined.csv"
-COMMIT_MESSAGE = "Update in.csv from local combined.csv"
+COMMIT_MESSAGE = "Auto update in.csv from GitHub Actions"
+
+# ✅ Securely get token from GitHub Action secret
+GITHUB_TOKEN = os.getenv("PAT_TOKEN")
+
+if not GITHUB_TOKEN:
+    raise ValueError("❌ GitHub token not found. Set 'PAT_TOKEN' as a secret in your repository.")
 
 # 1. Read local CSV
 with open(LOCAL_FILE, "rb") as file:
@@ -448,13 +458,13 @@ payload = {
     "message": COMMIT_MESSAGE,
     "content": encoded_content,
     "sha": file_sha,
-    "branch": "main"  # change if you're using another branch
+    "branch": "main"
 }
 
 # 4. Push update to GitHub
 put_response = requests.put(get_url, headers=headers, json=payload)
 
-if put_response.status_code == 200 or put_response.status_code == 201:
+if put_response.status_code in [200, 201]:
     print("✅ File updated successfully on GitHub.")
 else:
     print("❌ Failed to update file:", put_response.status_code)
