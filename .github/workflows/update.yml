@@ -25,4 +25,4 @@ jobs:
       - name: Run update script
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-        run: python update_script.py
+        run: python app1.py
