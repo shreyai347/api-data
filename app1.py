@@ -333,6 +333,14 @@ import pandas as pd
 
 
 # Combine all DataFrames
+import pandas as pd
+import requests
+import base64
+import os
+
+# === FINAL COMBINED DATA ===
+
+# NSE + BSE segment data
 final_df = pd.concat([
     nse_eq_df, nse_index_df, nse_fo_df,
     bse_eq_df, bse_index_df, bse_fo_df
@@ -340,102 +348,30 @@ final_df = pd.concat([
 
 # Sort by expiry
 final_df = final_df.sort_values(by='expiry')
-final_df = final_df[['trading_symbol', 'name', 'instrument_key','expiry' ,'exchange', 'instrument_type', 'option','lot_size']]
-# Save to single CSV file
+final_df = final_df[['trading_symbol', 'name', 'instrument_key', 'expiry', 'exchange', 'instrument_type', 'option', 'lot_size']]
 final_df.to_csv('data.csv', index=False)
 
-# Download the combined file
-#files.download('data.csv')
-
-"""# currency"""
-
+# === Currency segment ===
 df3 = pd.read_csv('output.csv', low_memory=False)
 df3 = df3[df3['underlying_type'].fillna('') == 'CUR']
-
-# Add 'option' column
 df3['option'] = df3['instrument_key']
-
-# Select and reorder columns
 df3 = df3[['trading_symbol', 'name', 'instrument_key', 'expiry', 'exchange', 'instrument_type', 'option', 'lot_size']]
-
-# Save to CSV
 df3.to_csv('curr.csv', index=False)
 
-df3.shape
-
-"""# mcx"""
-
-import json
-import csv
-import gzip
-import requests
-
-# URL to download the .json.gz file
-url = "https://assets.upstox.com/market-quote/instruments/exchange/MCX.json.gz"
-gz_filename = "complete.json.gz"
-json_filename = "complete.json"
-csv_filename = "mcx.csv"
-
-# Step 1: Download the GZ file
-response = requests.get(url)
-with open(gz_filename, 'wb') as f:
-    f.write(response.content)
-
-# Step 2: Extract the GZ file
-with gzip.open(gz_filename, 'rb') as f_in:
-    with open(json_filename, 'wb') as f_out:
-        f_out.write(f_in.read())
-
-# Step 3: Load JSON data from the extracted file
-with open(json_filename, 'r', encoding='utf-8') as json_file:
-    data = json.load(json_file)
-
-# Step 4: Ensure data is a list
-if isinstance(data, dict):
-    data = [data]
-
-# Step 5: Collect all unique keys across all dictionaries
-all_keys = set()
-for item in data:
-    all_keys.update(item.keys())
-
-# Convert set to list for CSV header
-header = list(all_keys)
-
-# Step 6: Write to CSV
-with open(csv_filename, 'w', newline='', encoding='utf-8') as csv_file:
-    writer = csv.DictWriter(csv_file, fieldnames=header)
-    writer.writeheader()
-    writer.writerows(data)
-
-print(f"✅ Conversion complete! Saved as '{csv_filename}'")
-
-df1 = pd.read_csv('mcx.csv')
-df1['option'] = df1['instrument_key']
-df1 = df1 [['trading_symbol', 'name', 'instrument_key','expiry' ,'exchange', 'instrument_type', 'option','lot_size']]
-df1.to_csv('mcs.csv', index = False)
-#
-
-combined_df = pd.concat([final_df, df1,df3], ignore_index=True)
+# === Combine NSE+BSE+Currency ===
+combined_df = pd.concat([final_df, df3], ignore_index=True)
 combined_df.to_csv('combined.csv', index=False)
-print("done")
+print("✅ Combined file generated")
 
+# === GitHub Upload ===
 
-
-
-# === Replace these values ===
-import requests
-import base64
-import os
-
-# === Replace these values ===
 GITHUB_USERNAME = "shreyai347"
 REPO = "api-data"
 FILE_PATH = "in.csv"
 LOCAL_FILE = "combined.csv"
 COMMIT_MESSAGE = "Auto update in.csv from GitHub Actions"
 
-# ✅ Securely get token from GitHub Action secret
+# Get token from GitHub secret
 GITHUB_TOKEN = os.getenv("PAT_TOKEN")
 
 if not GITHUB_TOKEN:
@@ -446,14 +382,14 @@ with open(LOCAL_FILE, "rb") as file:
     content = file.read()
     encoded_content = base64.b64encode(content).decode("utf-8")
 
-# 2. Get current file SHA from GitHub
+# 2. Get SHA of current GitHub file
 get_url = f"https://api.github.com/repos/{GITHUB_USERNAME}/{REPO}/contents/{FILE_PATH}"
 headers = {"Authorization": f"token {GITHUB_TOKEN}"}
 get_response = requests.get(get_url, headers=headers)
 get_response.raise_for_status()
 file_sha = get_response.json()["sha"]
 
-# 3. Prepare payload for update
+# 3. Prepare payload
 payload = {
     "message": COMMIT_MESSAGE,
     "content": encoded_content,
